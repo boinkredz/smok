@@ -1,0 +1,20 @@
+packages:
+  - .
+  - server
+
+onlyBuiltDependencies:
+  - "@swc/core"
+  - "@tailwindcss/oxide"
+  - esbuild
+
+blockExoticSubdeps: true
+
+minimumReleaseAge: 4320
+allowBuilds:
+  '@prisma/engines': true
+  "@swc/core": true
+  argon2: true
+  bcrypt: true
+  core-js: true
+  esbuild: true
+  prisma: true
