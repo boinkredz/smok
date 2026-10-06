@@ -1,0 +1,746 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                                                                       Int                          @id @default(autoincrement())
+  name                                                                     String
+  email                                                                    String                       @unique
+  roleId                                                                   Int
+  createdAt                                                                DateTime                     @default(now())
+  updatedAt                                                                DateTime                     @updatedAt
+  passwordHash                                                             String?
+  berita_acara                                                             berita_acara[]
+  delegasi_wewenang                                                        delegasi_wewenang[]
+  kunjungan_checkpoint                                                     kunjungan_checkpoint[]
+  laporan_harian_operasional_laporan_harian_operasional_approved_byTousers laporan_harian_operasional[] @relation("laporan_harian_operasional_approved_byTousers")
+  laporan_harian_operasional_laporan_harian_operasional_dibuat_olehTousers laporan_harian_operasional[] @relation("laporan_harian_operasional_dibuat_olehTousers")
+  officer                                                                  Officer?
+  patroli_tugas                                                            patroli_tugas[]
+  shiftswaprequests                                                        shiftswaprequests[]
+  roleRef                                                                  Role                         @relation(fields: [roleId], references: [id])
+
+  @@map("users")
+}
+
+model Role {
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  level           Int
+  rolePermissions RolePermission[]
+  users           User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  code        String           @unique
+  name        String
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Officer {
+  id                                                       Int                       @id @default(autoincrement())
+  userId                                                   Int                       @unique
+  nama                                                     String
+  facePhotoUrl                                             String?
+  faceEnrolledAt                                           DateTime?
+  createdAt                                                DateTime                  @default(now())
+  updatedAt                                                DateTime                  @updatedAt
+  nik                                                      String                    @unique @db.VarChar(50)
+  jabatan                                                  String                    @db.VarChar(100)
+  lokasiTugas                                              String                    @db.VarChar(150)
+  telepon                                                  String?                   @db.VarChar(30)
+  email                                                    String?                   @db.VarChar(255)
+  status                                                   String                    @default("aktif") @db.VarChar(20)
+  tanggalMasuk                                             DateTime?                 @db.Timestamptz(6)
+  catatan                                                  String?
+  supervisorId                                             Int?
+  regu_id                                                  BigInt?
+  jenis_seragam                                            jenis_seragam?            @default(PDL)
+  tanggal_mulai_rotasi_override                            DateTime?                 @db.Date
+  assignments                                              Assignment[]
+  attendances                                              Attendance[]
+  cek_perlengkapan                                         cek_perlengkapan[]
+  cutibalance                                              CutiBalance[]
+  cutirequests_cutirequests_approvedbyToofficers           CutiRequest[]             @relation("cutirequests_approvedbyToofficers")
+  cutirequests_cutirequests_officeridToofficers            CutiRequest[]             @relation("cutirequests_officeridToofficers")
+  delegasi_wewenang_delegasi_wewenang_danru_idToofficers   delegasi_wewenang[]       @relation("delegasi_wewenang_danru_idToofficers")
+  delegasi_wewenang_delegasi_wewenang_wadanru_idToofficers delegasi_wewenang[]       @relation("delegasi_wewenang_wadanru_idToofficers")
+  laporan_harian                                           laporan_harian[]
+  laporan_harian_personil                                  laporan_harian_personil[]
+  regu                                                     regu?                     @relation(fields: [regu_id], references: [id], onUpdate: NoAction)
+  officers_officers_supervisorIdToofficers                 Officer?                  @relation("officers_supervisorIdToofficers", fields: [supervisorId], references: [id])
+  other_officers_officers_supervisorIdToofficers           Officer[]                 @relation("officers_supervisorIdToofficers")
+  user                                                     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patroli_tugas                                            patroli_tugas[]
+  rekap_gaji                                               rekap_gaji[]
+  shiftassignments                                         shiftassignments[]
+
+  @@index([supervisorId])
+  @@map("officers")
+}
+
+model Assignment {
+  id                      Int                       @id @default(autoincrement())
+  officerId               Int
+  tanggal                 DateTime
+  shiftNama               String?
+  jamMulai                String?
+  jamSelesai              String?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime?                 @updatedAt
+  siteId                  Int?
+  catatan                 String?
+  shiftId                 Int?
+  officer                 Officer                   @relation(fields: [officerId], references: [id], onDelete: Cascade)
+  shifts                  Shift?                    @relation(fields: [shiftId], references: [id], map: "assignments_shiftid_fkey")
+  sites                   sites?                    @relation(fields: [siteId], references: [id], map: "assignments_siteid_fkey")
+  attendance              Attendance?
+  laporan_harian_personil laporan_harian_personil[]
+
+  @@unique([officerId, tanggal])
+  @@map("assignments")
+}
+
+model Attendance {
+  id                 Int        @id @default(autoincrement())
+  officerId          Int
+  assignmentId       Int        @unique
+  tanggal            DateTime
+  waktuMasuk         DateTime?
+  waktuKeluar        DateTime?
+  latMasuk           Float?
+  lngMasuk           Float?
+  latKeluar          Float?
+  lngKeluar          Float?
+  fotoMasukUrl       String?
+  fotoKeluarUrl      String?
+  isLate             Boolean    @default(false)
+  keterlambatanMenit Int        @default(0)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  assignment         Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  officer            Officer    @relation(fields: [officerId], references: [id], onDelete: Cascade)
+
+  @@unique([officerId, tanggal])
+  @@map("attendances")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sites {
+  id                         Int                          @id @default(autoincrement())
+  name                       String                       @db.VarChar(150)
+  latitude                   Decimal                      @db.Decimal(10, 7)
+  longitude                  Decimal                      @db.Decimal(10, 7)
+  radius_meters              Int                          @default(100)
+  is_active                  Boolean                      @default(true)
+  created_at                 DateTime                     @default(now())
+  updated_at                 DateTime                     @default(now())
+  assignments                Assignment[]
+  berita_acara               berita_acara[]
+  checkpoint_patroli         checkpoint_patroli[]
+  geofences                  GeoFence[]
+  laporan_harian             laporan_harian[]
+  laporan_harian_operasional laporan_harian_operasional[]
+  patroli_tugas              patroli_tugas[]
+  rute_patroli               rute_patroli[]
+  shiftassignments           shiftassignments[]
+
+  @@map("sites")
+}
+
+model GeoFence {
+  id           Int      @id @default(autoincrement())
+  siteId       Int      @map("site_id")
+  name         String
+  latitude     Float
+  longitude    Float
+  radiusMeters Int      @default(100) @map("radius_meters")
+  description  String?
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  site         sites    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@map("geofences")
+}
+
+model Jabatan {
+  id                                                    BigInt         @id @default(autoincrement())
+  kode                                                  String         @unique @db.VarChar(50)
+  nama                                                  String         @unique @db.VarChar(150)
+  aktif                                                 Boolean        @default(true)
+  createdAt                                             DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                                             DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  berita_acara_berita_acara_atasan_jabatan_idTojabatan  berita_acara[] @relation("berita_acara_atasan_jabatan_idTojabatan")
+  berita_acara_berita_acara_ketahui_jabatan_idTojabatan berita_acara[] @relation("berita_acara_ketahui_jabatan_idTojabatan")
+  berita_acara_berita_acara_petugas_jabatan_idTojabatan berita_acara[] @relation("berita_acara_petugas_jabatan_idTojabatan")
+
+  @@map("jabatan")
+}
+
+model LokasiGedung {
+  id           BigInt         @id @default(autoincrement())
+  kode         String         @unique @db.VarChar(50)
+  nama         String         @unique @db.VarChar(150)
+  aktif        Boolean        @default(true)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  berita_acara berita_acara[]
+
+  @@map("lokasi_gedung")
+}
+
+model Shift {
+  id                         Int                          @id @default(autoincrement())
+  nama                       String                       @unique @db.VarChar(100)
+  jamMulai                   String                       @map("jam_mulai") @db.VarChar(5)
+  jamSelesai                 String                       @map("jam_selesai") @db.VarChar(5)
+  aktif                      Boolean                      @default(true)
+  createdAt                  DateTime                     @default(now()) @map("created_at")
+  updatedAt                  DateTime                     @default(now()) @updatedAt @map("updated_at")
+  warnaTema                  String?                      @default("#3B82F6") @map("warna_tema") @db.VarChar(20)
+  keterangan                 String?
+  kode                       String?                      @unique @db.VarChar(5)
+  assignments                Assignment[]
+  laporan_harian_operasional laporan_harian_operasional[]
+  patroli_tugas              patroli_tugas[]
+  pola_rotasi                pola_rotasi[]
+  shiftassignments           shiftassignments[]
+
+  @@map("shifts")
+}
+
+model CutiBalance {
+  id         Int      @id @default(autoincrement())
+  officerid  Int
+  tahun      Int      @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
+  jatahtotal Int      @default(12)
+  terpakai   Int      @default(0)
+  createdat  DateTime @default(now()) @db.Timestamp(6)
+  updatedat  DateTime @default(now()) @db.Timestamp(6)
+  officers   Officer  @relation(fields: [officerid], references: [id], onDelete: Cascade)
+
+  @@unique([officerid, tahun], map: "cutibalance_officer_tahun_unique")
+  @@map("cutibalance")
+}
+
+model CutiRequest {
+  id                                         Int       @id @default(autoincrement())
+  officerid                                  Int
+  jenis                                      String    @default("cuti") @db.VarChar(20)
+  status                                     String    @default("pending") @db.VarChar(20)
+  tanggalmulai                               DateTime  @db.Date
+  tanggalselesai                             DateTime  @db.Date
+  alasan                                     String
+  catatan                                    String?
+  suratsakiturl                              String?
+  approvedby                                 Int?
+  approvedat                                 DateTime? @db.Timestamp(6)
+  createdat                                  DateTime  @default(now()) @db.Timestamp(6)
+  updatedat                                  DateTime  @default(now()) @db.Timestamp(6)
+  officers_cutirequests_approvedbyToofficers Officer?  @relation("cutirequests_approvedbyToofficers", fields: [approvedby], references: [id])
+  officers_cutirequests_officeridToofficers  Officer   @relation("cutirequests_officeridToofficers", fields: [officerid], references: [id], onDelete: Cascade)
+
+  @@index([officerid])
+  @@index([status])
+  @@index([tanggalmulai, tanggalselesai], map: "cutirequests_tanggal_idx")
+  @@map("cutirequests")
+}
+
+model shiftassignments {
+  id                                                                          Int                 @id @default(autoincrement())
+  officerid                                                                   Int
+  shiftid                                                                     Int
+  tanggal                                                                     DateTime            @db.Date
+  createdat                                                                   DateTime            @default(now()) @db.Timestamp(6)
+  updatedat                                                                   DateTime?           @default(now()) @db.Timestamp(6)
+  siteid                                                                      Int?
+  cek_perlengkapan                                                            cek_perlengkapan?
+  officers                                                                    Officer             @relation(fields: [officerid], references: [id], onDelete: Cascade, map: "shiftassignments_officer_fk")
+  shifts                                                                      Shift               @relation(fields: [shiftid], references: [id], map: "shiftassignments_shift_fk")
+  sites                                                                       sites?              @relation(fields: [siteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "shiftassignments_site_fk")
+  shiftswaprequests_shiftswaprequests_requesterassignmentidToshiftassignments shiftswaprequests[] @relation("shiftswaprequests_requesterassignmentidToshiftassignments")
+  shiftswaprequests_shiftswaprequests_targetassignmentidToshiftassignments    shiftswaprequests[] @relation("shiftswaprequests_targetassignmentidToshiftassignments")
+
+  @@unique([officerid, tanggal], map: "shiftassignments_officer_tanggal_key")
+  @@unique([officerid, tanggal], map: "unique_officer_tanggal")
+  @@index([officerid, tanggal], map: "idx_shiftassignments_officer_tanggal")
+  @@index([officerid], map: "idx_shiftassignments_officerid")
+  @@index([shiftid], map: "idx_shiftassignments_shiftid")
+  @@index([tanggal], map: "idx_shiftassignments_tanggal")
+  @@index([siteid], map: "idx_shiftassignments_siteid")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model shiftswaprequests {
+  id                                                                         Int              @id @default(autoincrement())
+  requesterassignmentid                                                      Int
+  targetassignmentid                                                         Int
+  alasan                                                                     String?
+  status                                                                     String           @default("pending") @db.VarChar(20)
+  approvedby                                                                 Int?
+  approvedat                                                                 DateTime?        @db.Timestamp(6)
+  createdat                                                                  DateTime         @default(now()) @db.Timestamp(6)
+  updatedat                                                                  DateTime         @default(now()) @db.Timestamp(6)
+  users                                                                      User?            @relation(fields: [approvedby], references: [id], onUpdate: NoAction, map: "shiftswaprequests_approvedby_fk")
+  shiftassignments_shiftswaprequests_requesterassignmentidToshiftassignments shiftassignments @relation("shiftswaprequests_requesterassignmentidToshiftassignments", fields: [requesterassignmentid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "shiftswaprequests_requester_assignment_fk")
+  shiftassignments_shiftswaprequests_targetassignmentidToshiftassignments    shiftassignments @relation("shiftswaprequests_targetassignmentidToshiftassignments", fields: [targetassignmentid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "shiftswaprequests_target_assignment_fk")
+
+  @@unique([requesterassignmentid, targetassignmentid], map: "uq_shiftswaprequests_pending", where: raw("((status)::text = 'pending'::text)"))
+  @@index([createdat(sort: Desc)], map: "idx_shiftswaprequests_createdat")
+  @@index([requesterassignmentid], map: "idx_shiftswaprequests_requesterassignmentid")
+  @@index([status], map: "idx_shiftswaprequests_status")
+  @@index([targetassignmentid], map: "idx_shiftswaprequests_targetassignmentid")
+}
+
+model berita_acara {
+  id                                               Int          @id @default(autoincrement())
+  nomor_ba                                         String       @unique @db.VarChar(100)
+  site_id                                          Int?
+  lokasi_gedung_id                                 BigInt
+  tanggal                                          DateTime     @db.Date
+  waktu                                            DateTime     @db.Time(6)
+  jenis_insiden                                    String       @db.VarChar(100)
+  lokasi_detail                                    String
+  kronologi                                        String
+  tindakan                                         String
+  hasil_tindakan                                   String
+  petugas_nama                                     String       @db.VarChar(255)
+  petugas_jabatan_id                               BigInt
+  ttd_petugas                                      String?
+  atasan_nama                                      String?      @db.VarChar(255)
+  atasan_jabatan_id                                BigInt?
+  ttd_atasan                                       String?
+  ketahui_nama                                     String?      @db.VarChar(255)
+  ketahui_jabatan_id                               BigInt?
+  ttd_ketahui                                      String?
+  tempat_ttd                                       String       @db.VarChar(255)
+  lampiran                                         Json         @default("[]")
+  created_by                                       Int?
+  created_at                                       DateTime     @default(now()) @db.Timestamp(6)
+  updated_at                                       DateTime     @default(now()) @db.Timestamp(6)
+  jabatan_berita_acara_atasan_jabatan_idTojabatan  Jabatan?     @relation("berita_acara_atasan_jabatan_idTojabatan", fields: [atasan_jabatan_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_berita_acara_atasan_jabatan")
+  users                                            User?        @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_berita_acara_created_by")
+  jabatan_berita_acara_ketahui_jabatan_idTojabatan Jabatan?     @relation("berita_acara_ketahui_jabatan_idTojabatan", fields: [ketahui_jabatan_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_berita_acara_ketahui_jabatan")
+  lokasi_gedung                                    LokasiGedung @relation(fields: [lokasi_gedung_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_berita_acara_lokasi_gedung")
+  jabatan_berita_acara_petugas_jabatan_idTojabatan Jabatan      @relation("berita_acara_petugas_jabatan_idTojabatan", fields: [petugas_jabatan_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_berita_acara_petugas_jabatan")
+  sites                                            sites?       @relation(fields: [site_id], references: [id], onUpdate: NoAction, map: "fk_berita_acara_site")
+
+  @@index([created_by], map: "idx_berita_acara_created_by")
+  @@index([jenis_insiden], map: "idx_berita_acara_jenis_insiden")
+  @@index([lokasi_gedung_id], map: "idx_berita_acara_lokasi_gedung_id")
+  @@index([site_id], map: "idx_berita_acara_site_id")
+  @@index([tanggal], map: "idx_berita_acara_tanggal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model checklist_patroli {
+  id                 BigInt              @id @default(autoincrement())
+  rute_id            BigInt
+  checkpoint_id      BigInt
+  pertanyaan         String
+  tipe_jawaban       String              @default("ya_tidak") @db.VarChar(20)
+  wajib              Boolean             @default(true)
+  aktif              Boolean             @default(true)
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  checklist_jawaban  checklist_jawaban[]
+  checkpoint_patroli checkpoint_patroli  @relation(fields: [checkpoint_id], references: [id], onUpdate: NoAction, map: "checklist_patroli_checkpoint_fk")
+  rute_patroli       rute_patroli        @relation(fields: [rute_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "checklist_patroli_rute_fk")
+
+  @@index([checkpoint_id], map: "idx_checklist_patroli_checkpoint")
+  @@index([rute_id], map: "idx_checklist_patroli_rute")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model checkpoint_patroli {
+  id                      BigInt                    @id @default(autoincrement())
+  site_id                 Int
+  kode                    String                    @unique @db.VarChar(50)
+  nama                    String                    @db.VarChar(150)
+  deskripsi               String?
+  latitude                Decimal?                  @db.Decimal(10, 7)
+  longitude               Decimal?                  @db.Decimal(10, 7)
+  radius_meter            Int                       @default(30)
+  urutan                  Int                       @default(1)
+  aktif                   Boolean                   @default(true)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  checklist_patroli       checklist_patroli[]
+  sites                   sites                     @relation(fields: [site_id], references: [id], onUpdate: NoAction, map: "checkpoint_patroli_site_fk")
+  kunjungan_checkpoint    kunjungan_checkpoint[]
+  rute_patroli_checkpoint rute_patroli_checkpoint[]
+
+  @@index([site_id], map: "idx_checkpoint_patroli_site")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gaji_komponen {
+  id                BigInt              @id @default(autoincrement())
+  kode              String              @unique @db.VarChar(50)
+  nama              String              @db.VarChar(150)
+  tipe              String              @db.VarChar(20)
+  nominal_default   Decimal             @default(0) @db.Decimal(14, 2)
+  aktif             Boolean             @default(true)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+  rekap_gaji_detail rekap_gaji_detail[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rekap_gaji {
+  id                BigInt              @id @default(autoincrement())
+  officer_id        Int
+  periode_bulan     Int
+  periode_tahun     Int
+  total_pendapatan  Decimal             @default(0) @db.Decimal(14, 2)
+  total_potongan    Decimal             @default(0) @db.Decimal(14, 2)
+  gaji_bersih       Decimal             @default(0) @db.Decimal(14, 2)
+  status            String              @default("draft") @db.VarChar(20)
+  tanggal_bayar     DateTime?           @db.Date
+  keterangan        String?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+  officers          Officer             @relation(fields: [officer_id], references: [id], onUpdate: NoAction, map: "rekap_gaji_officer_fk")
+  rekap_gaji_detail rekap_gaji_detail[]
+
+  @@unique([officer_id, periode_bulan, periode_tahun], map: "rekap_gaji_periode_unique")
+  @@index([officer_id], map: "idx_rekap_gaji_officer")
+  @@index([periode_tahun, periode_bulan], map: "idx_rekap_gaji_periode")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rekap_gaji_detail {
+  id            BigInt        @id @default(autoincrement())
+  rekap_gaji_id BigInt
+  komponen_id   BigInt
+  nominal       Decimal       @db.Decimal(14, 2)
+  keterangan    String?
+  gaji_komponen gaji_komponen @relation(fields: [komponen_id], references: [id], onUpdate: NoAction, map: "rekap_gaji_detail_komponen_fk")
+  rekap_gaji    rekap_gaji    @relation(fields: [rekap_gaji_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "rekap_gaji_detail_rekap_fk")
+
+  @@unique([rekap_gaji_id, komponen_id], map: "rekap_gaji_detail_unique")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rute_patroli {
+  id                      BigInt                    @id @default(autoincrement())
+  site_id                 Int
+  kode                    String                    @unique @db.VarChar(50)
+  nama                    String                    @db.VarChar(150)
+  deskripsi               String?
+  durasi_target_menit     Int                       @default(30)
+  aktif                   Boolean                   @default(true)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  checklist_patroli       checklist_patroli[]
+  patroli_tugas           patroli_tugas[]
+  sites                   sites                     @relation(fields: [site_id], references: [id], onUpdate: NoAction, map: "rute_patroli_site_fk")
+  rute_patroli_checkpoint rute_patroli_checkpoint[]
+
+  @@index([site_id], map: "idx_rute_patroli_site")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rute_patroli_checkpoint {
+  id                 BigInt             @id @default(autoincrement())
+  rute_id            BigInt
+  checkpoint_id      BigInt
+  urutan             Int
+  wajib              Boolean            @default(true)
+  checkpoint_patroli checkpoint_patroli @relation(fields: [checkpoint_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "rute_checkpoint_checkpoint_fk")
+  rute_patroli       rute_patroli       @relation(fields: [rute_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "rute_checkpoint_rute_fk")
+
+  @@unique([rute_id, urutan], map: "rute_checkpoint_order_unique")
+  @@unique([rute_id, checkpoint_id], map: "rute_checkpoint_unique")
+  @@index([checkpoint_id], map: "idx_rute_checkpoint_checkpoint")
+  @@index([rute_id], map: "idx_rute_checkpoint_rute")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model laporan_harian {
+  id                         BigInt                      @id @default(autoincrement())
+  tanggal                    DateTime                    @db.Date
+  officer_id                 Int
+  site_id                    Int
+  status                     String                      @default("HADIR") @db.VarChar(20)
+  jam_masuk                  DateTime?                   @db.Timestamptz(6)
+  jam_keluar                 DateTime?                   @db.Timestamptz(6)
+  latitude_masuk             Decimal?                    @db.Decimal(10, 7)
+  longitude_masuk            Decimal?                    @db.Decimal(10, 7)
+  latitude_keluar            Decimal?                    @db.Decimal(10, 7)
+  longitude_keluar           Decimal?                    @db.Decimal(10, 7)
+  selfie_masuk_url           String?
+  selfie_keluar_url          String?
+  keterangan                 String?
+  created_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  laporan_operasional_id     Int?
+  officers                   Officer                     @relation(fields: [officer_id], references: [id], map: "fk_laporan_harian_officer")
+  sites                      sites                       @relation(fields: [site_id], references: [id], map: "fk_laporan_harian_site")
+  laporan_harian_operasional laporan_harian_operasional? @relation(fields: [laporan_operasional_id], references: [id], map: "laporan_harian_operasional_fk")
+
+  @@unique([tanggal, officer_id, site_id], map: "laporan_harian_tanggal_officer_site_unique")
+  @@index([laporan_operasional_id], map: "idx_laporan_harian_operasional_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cek_perlengkapan {
+  id                      Int                       @id @default(autoincrement())
+  shiftassignmentid       Int                       @unique(map: "cek_perlengkapan_assignment_unique")
+  officerid               Int
+  tanggal                 DateTime                  @db.Date
+  status                  String                    @default("draft") @db.VarChar(20)
+  catatan                 String?
+  created_at              DateTime                  @default(now()) @db.Timestamp(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamp(6)
+  shiftassignments        shiftassignments          @relation(fields: [shiftassignmentid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cek_perlengkapan_assignment_fk")
+  officers                Officer                   @relation(fields: [officerid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cek_perlengkapan_officer_fk")
+  cek_perlengkapan_detail cek_perlengkapan_detail[]
+
+  @@index([tanggal], map: "idx_cek_perlengkapan_tanggal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cek_perlengkapan_detail {
+  id               Int              @id @default(autoincrement())
+  cek_id           Int
+  perlengkapan_id  Int
+  kondisi          String           @db.VarChar(20)
+  jumlah_diperiksa Int              @default(0)
+  jumlah_baik      Int              @default(0)
+  jumlah_rusak     Int              @default(0)
+  jumlah_hilang    Int              @default(0)
+  keterangan       String?
+  created_at       DateTime         @default(now()) @db.Timestamp(6)
+  updated_at       DateTime         @default(now()) @db.Timestamp(6)
+  cek_perlengkapan cek_perlengkapan @relation(fields: [cek_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cek_detail_cek_fk")
+  perlengkapan     perlengkapan     @relation(fields: [perlengkapan_id], references: [id], onUpdate: NoAction, map: "cek_detail_perlengkapan_fk")
+
+  @@unique([cek_id, perlengkapan_id], map: "cek_detail_unique")
+  @@index([cek_id], map: "idx_cek_detail_cek_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model perlengkapan {
+  id                      Int                       @id @default(autoincrement())
+  kode                    String                    @unique @db.VarChar(50)
+  nama                    String                    @db.VarChar(150)
+  satuan                  String                    @default("unit") @db.VarChar(30)
+  jumlah_standar          Int                       @default(1)
+  aktif                   Boolean                   @default(true)
+  created_at              DateTime                  @default(now()) @db.Timestamp(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamp(6)
+  cek_perlengkapan_detail cek_perlengkapan_detail[]
+}
+
+model laporan_harian_foto {
+  id                         Int                        @id @default(autoincrement())
+  laporan_id                 Int
+  file_url                   String
+  judul                      String?                    @db.VarChar(150)
+  keterangan                 String?
+  urutan                     Int                        @default(0)
+  created_at                 DateTime                   @default(now()) @db.Timestamp(6)
+  laporan_harian_operasional laporan_harian_operasional @relation(fields: [laporan_id], references: [id], onDelete: Cascade, map: "laporan_harian_foto_laporan_fk")
+
+  @@index([laporan_id], map: "idx_laporan_foto_laporan")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model laporan_harian_operasional {
+  id                                                  Int                       @id @default(autoincrement())
+  tanggal                                             DateTime                  @db.Date
+  site_id                                             Int
+  shift_id                                            Int
+  dibuat_oleh                                         Int
+  status                                              String                    @default("DRAFT") @db.VarChar(30)
+  jumlah_personil_seharusnya                          Int                       @default(0)
+  jumlah_personil_hadir                               Int                       @default(0)
+  jumlah_terlambat                                    Int                       @default(0)
+  jumlah_tidak_hadir                                  Int                       @default(0)
+  jumlah_tukar_shift                                  Int                       @default(0)
+  dinamika                                            String?
+  informasi_regu_berikutnya                           String?
+  hal_perlu_dieskalasi                                String?
+  catatan_supervisor                                  String?
+  submitted_at                                        DateTime?                 @db.Timestamp(6)
+  approved_at                                         DateTime?                 @db.Timestamp(6)
+  approved_by                                         Int?
+  created_at                                          DateTime                  @default(now()) @db.Timestamp(6)
+  updated_at                                          DateTime                  @default(now()) @db.Timestamp(6)
+  laporan_harian                                      laporan_harian[]
+  laporan_harian_foto                                 laporan_harian_foto[]
+  users_laporan_harian_operasional_approved_byTousers User?                     @relation("laporan_harian_operasional_approved_byTousers", fields: [approved_by], references: [id], map: "laporan_harian_operasional_approver_fk")
+  users_laporan_harian_operasional_dibuat_olehTousers User                      @relation("laporan_harian_operasional_dibuat_olehTousers", fields: [dibuat_oleh], references: [id], map: "laporan_harian_operasional_creator_fk")
+  shifts                                              Shift                     @relation(fields: [shift_id], references: [id], map: "laporan_harian_operasional_shift_fk")
+  sites                                               sites                     @relation(fields: [site_id], references: [id], map: "laporan_harian_operasional_site_fk")
+  laporan_harian_personil                             laporan_harian_personil[]
+
+  @@unique([tanggal, site_id, shift_id], map: "laporan_harian_operasional_unique")
+  @@index([site_id, shift_id], map: "idx_laporan_operasional_site_shift")
+  @@index([tanggal], map: "idx_laporan_operasional_tanggal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model laporan_harian_personil {
+  id                         Int                        @id @default(autoincrement())
+  laporan_id                 Int
+  assignment_id              Int
+  officer_id                 Int
+  pos                        String?                    @db.VarChar(150)
+  kondisi_fisik              String?                    @db.VarChar(50)
+  kelengkapan_kerja          String?                    @db.VarChar(50)
+  status_kehadiran           String?                    @db.VarChar(30)
+  keterangan                 String?
+  created_at                 DateTime                   @default(now()) @db.Timestamp(6)
+  updated_at                 DateTime                   @default(now()) @db.Timestamp(6)
+  assignments                Assignment                 @relation(fields: [assignment_id], references: [id], map: "laporan_harian_personil_assignment_fk")
+  laporan_harian_operasional laporan_harian_operasional @relation(fields: [laporan_id], references: [id], onDelete: Cascade, map: "laporan_harian_personil_laporan_fk")
+  officers                   Officer                    @relation(fields: [officer_id], references: [id], map: "laporan_harian_personil_officer_fk")
+
+  @@unique([laporan_id, assignment_id], map: "laporan_harian_personil_unique")
+  @@index([assignment_id], map: "idx_laporan_personil_assignment")
+  @@index([laporan_id], map: "idx_laporan_personil_laporan")
+  @@index([officer_id], map: "idx_laporan_personil_officer")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model patroli_tugas {
+  id                   Int                    @id @default(autoincrement())
+  tanggal              DateTime               @db.Date
+  site_id              Int
+  officer_id           Int?
+  lokasi_mulai         String?                @db.VarChar(200)
+  lokasi_selesai       String?                @db.VarChar(200)
+  status               String                 @default("BELUM_DIMULAI") @db.VarChar(30)
+  jam_mulai_rencana    DateTime?              @db.Time(6)
+  jam_selesai_rencana  DateTime?              @db.Time(6)
+  catatan              String?
+  dibuat_oleh          Int?
+  created_at           DateTime               @default(now()) @db.Timestamp(6)
+  updated_at           DateTime               @default(now()) @db.Timestamp(6)
+  rute_id              BigInt?
+  shift_id             Int?
+  waktu_mulai_aktual   DateTime?              @db.Timestamptz(6)
+  waktu_selesai_aktual DateTime?              @db.Timestamptz(6)
+  kunjungan_checkpoint kunjungan_checkpoint[]
+  shifts               Shift?                 @relation(fields: [shift_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patroli_tugas_shift")
+  users                User?                  @relation(fields: [dibuat_oleh], references: [id], map: "patroli_tugas_creator_fk")
+  officers             Officer?               @relation(fields: [officer_id], references: [id], map: "patroli_tugas_officer_fk")
+  rute_patroli         rute_patroli?          @relation(fields: [rute_id], references: [id], onUpdate: NoAction, map: "patroli_tugas_rute_fk")
+  sites                sites                  @relation(fields: [site_id], references: [id], map: "patroli_tugas_site_fk")
+
+  @@index([officer_id], map: "idx_patroli_tugas_officer")
+  @@index([site_id], map: "idx_patroli_tugas_site")
+  @@index([tanggal], map: "idx_patroli_tugas_tanggal")
+  @@index([rute_id], map: "idx_patroli_tugas_rute")
+  @@index([shift_id], map: "idx_patroli_tugas_shift")
+}
+
+model checklist_jawaban {
+  id                   BigInt               @id @default(autoincrement())
+  kunjungan_id         BigInt
+  checklist_patroli_id BigInt
+  jawaban              String               @db.VarChar(50)
+  created_at           DateTime             @default(now()) @db.Timestamptz(6)
+  checklist_patroli    checklist_patroli    @relation(fields: [checklist_patroli_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kunjungan_checkpoint kunjungan_checkpoint @relation(fields: [kunjungan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([kunjungan_id, checklist_patroli_id])
+  @@index([kunjungan_id], map: "idx_jawaban_kunjungan")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model kunjungan_checkpoint {
+  id                 BigInt              @id @default(autoincrement())
+  tugas_id           Int?
+  checkpoint_id      BigInt
+  waktu_kunjungan    DateTime            @default(now()) @db.Timestamptz(6)
+  latitude           Decimal             @db.Decimal(10, 7)
+  longitude          Decimal             @db.Decimal(10, 7)
+  jarak_meter        Decimal             @db.Decimal(8, 2)
+  dalam_radius       Boolean
+  status_temuan      String              @default("normal") @db.VarChar(20)
+  catatan            String?
+  foto_path          String              @db.VarChar(255)
+  dibuat_oleh        Int
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  checklist_jawaban  checklist_jawaban[]
+  checkpoint_patroli checkpoint_patroli  @relation(fields: [checkpoint_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users              User                @relation(fields: [dibuat_oleh], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  patroli_tugas      patroli_tugas?      @relation(fields: [tugas_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tugas_id, checkpoint_id])
+  @@index([checkpoint_id], map: "idx_kunjungan_checkpoint")
+  @@index([tugas_id], map: "idx_kunjungan_tugas")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pola_rotasi {
+  id          BigInt @id @default(autoincrement())
+  regu_id     BigInt
+  urutan_hari Int    @db.SmallInt
+  shift_id    Int
+  shifts      Shift  @relation(fields: [shift_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_pola_rotasi_shift")
+  regu        regu   @relation(fields: [regu_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([regu_id, urutan_hari])
+}
+
+model regu {
+  id                   BigInt        @id @default(autoincrement())
+  nama                 String        @db.VarChar(100)
+  tanggal_mulai_rotasi DateTime      @db.Date
+  created_at           DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime      @default(now()) @db.Timestamptz(6)
+  officers             Officer[]
+  pola_rotasi          pola_rotasi[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model delegasi_wewenang {
+  id                                              Int      @id @default(autoincrement())
+  danru_id                                        Int
+  wadanru_id                                      Int
+  regu_id                                         BigInt
+  mulai                                           DateTime @db.Timestamptz(6)
+  selesai                                         DateTime @db.Timestamptz(6)
+  alasan                                          String   @db.VarChar(255)
+  status                                          String   @default("aktif") @db.VarChar(20)
+  dibuat_oleh                                     Int
+  created_at                                      DateTime @default(now()) @db.Timestamptz(6)
+  officers_delegasi_wewenang_danru_idToofficers   Officer  @relation("delegasi_wewenang_danru_idToofficers", fields: [danru_id], references: [id], onUpdate: NoAction, map: "fk_delegasi_danru")
+  users                                           User     @relation(fields: [dibuat_oleh], references: [id], onUpdate: NoAction, map: "fk_delegasi_dibuat_oleh")
+  officers_delegasi_wewenang_wadanru_idToofficers Officer  @relation("delegasi_wewenang_wadanru_idToofficers", fields: [wadanru_id], references: [id], onUpdate: NoAction, map: "fk_delegasi_wadanru")
+
+  @@index([status], map: "idx_delegasi_status")
+  @@index([wadanru_id, mulai, selesai], map: "idx_delegasi_wadanru_periode")
+}
+
+enum jenis_seragam {
+  PDL
+  PDH
+  SAFARI
+}
